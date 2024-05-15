@@ -88,7 +88,7 @@ def main():
             st.write(vif_data)
 
             # Factor Analysis
-            rotation_options = ["None", "Varimax", "Promax"]
+            rotation_options = ["None", "Varimax", "Promax","Quartimax","Oblimin"]
             rotation = st.selectbox("Select rotation:", rotation_options)
             method_options = ["Principal", "Minres", "ML", "GLS", "OLS"]
             method = st.selectbox("Select method:", method_options)
@@ -172,3 +172,7 @@ def main():
                 This app was created by Nikhil Saxena for LMRI team use.
                 Contact: Nikhil.Saxena@lilly.com
                 """
+            )
+
+if __name__ == "__main__":
+    main()
