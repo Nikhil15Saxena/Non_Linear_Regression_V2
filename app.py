@@ -72,6 +72,7 @@ def main():
             plt.title('Scree Plot')
             plt.xlabel('Factors')
             plt.ylabel('Eigen Value')
+            plt.grid()
             st.pyplot(plt)
 
             # Heatmap of correlation matrix
@@ -99,7 +100,8 @@ def main():
             elif method == "Varimax":
                 method = "varimax"
 
-            fa = FactorAnalyzer(n_factors=df2.shape[1], method=method, rotation=rotation)
+            n_factors = st.number_input("Enter the number of factors:", min_value=1, max_value=df2.shape[1], value=6)
+            fa = FactorAnalyzer(n_factors=n_factors, method=method, rotation=rotation)
             fa.fit(df2)
             fa_df = pd.DataFrame(fa.loadings_.round(2), index=df2.columns)
             st.write("Factor Loadings:")
