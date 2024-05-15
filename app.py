@@ -19,7 +19,7 @@ from factor_analyzer.factor_analyzer import calculate_bartlett_sphericity, calcu
 
 # Streamlit app
 def main():
-    st.title("Non-Linear Regression Analysis")
+    st.title("Non-Linear Regression Analysis_V1")
 
     st.header("Upload your dataset")
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
@@ -155,5 +155,20 @@ def main():
 
             # ROC Curve
             fpr, tpr, _ = roc_curve(y_test, rf_classifier.predict_proba(X_test)[:, 1])
-            roc_auc = auc(fpr, tpr
+            roc_auc = auc(fpr, tpr)
+            plt.figure(figsize=(10, 6))
+            plt.plot(fpr, tpr, color='blue', label=f'ROC curve (area = {roc_auc:.2f})')
+            plt.plot([0, 1], [0, 1], color='red', linestyle='--')
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.title('Receiver Operating Characteristic (ROC) Curve')
+            plt.legend(loc="lower right")
+            st.pyplot(plt)
 
+            # About section
+            st.sidebar.title("About")
+            st.sidebar.info(
+                """
+                This app was created by Nikhil Saxena for LMRI team use.
+                Contact: Nikhil.Saxena@lilly.com
+                """
