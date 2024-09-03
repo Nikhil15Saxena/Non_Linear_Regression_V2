@@ -9,9 +9,6 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from factor_analyzer import FactorAnalyzer
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
-from sklearn.tree import export_graphviz
-import pydotplus
-from io import StringIO
 import graphviz
 import xgboost as xgb
 
@@ -101,85 +98,82 @@ def main():
         independent_vars = st.multiselect("Select independent variables:", filtered_df.columns)
         
         if outcome_var and independent_vars:
-            df2 = filtered_df[independent_vars]
+            X = filtered_df[independent_vars]
             y = filtered_df[outcome_var]
 
-            
             # Heatmap of correlation matrix
+            st.write("Correlation Matrix:")
             plt.figure(figsize=(20, 10))
-            sns.heatmap(df2.corr(), cmap="Reds", annot=True)
+            sns.heatmap(X.corr(), cmap="Reds", annot=True)
             st.pyplot(plt)
             with st.expander("Description"):
-                        st.markdown("""
-                        **What it is**: A visual representation of the correlation matrix where the strength of correlation is represented by color intensity.
-                        
-                        **What it tells us**: Helps to identify the strength and direction of relationships between variables. High correlation values indicate multicollinearity.
-                        """)
+                st.markdown("""
+                **What it is**: A visual representation of the correlation matrix where the strength of correlation is represented by color intensity.
+                
+                **What it tells us**: Helps to identify the strength and direction of relationships between variables. High correlation values indicate multicollinearity.
+                """)
 
             # Variance Inflation Factor (VIF)
-            df2_with_const = add_constant(df2)
+            df2_with_const = add_constant(X)
             vif_data = pd.DataFrame()
             vif_data["Variable"] = df2_with_const.columns
             vif_data["VIF"] = [variance_inflation_factor(df2_with_const.values, i) for i in range(df2_with_const.shape[1])]
-            vif_data = vif_data[vif_data["Variable"] !="const"]
+            vif_data = vif_data[vif_data["Variable"] != "const"]
             st.write("Variance Inflation Factor (VIF):")
             st.write(vif_data)
             with st.expander("Description"):
-                        st.markdown("""
-                        **What it is**: Measures the increase in variance of the estimated regression coefficients due to collinearity.
-                        
-                        **What it tells us**: VIF values above 10 indicate high multicollinearity, suggesting that the predictor variables are highly correlated and may not be suitable for regression analysis.
-                        """)
+                st.markdown("""
+                **What it is**: Measures the increase in variance of the estimated regression coefficients due to collinearity.
+                
+                **What it tells us**: VIF values above 10 indicate high multicollinearity, suggesting that the predictor variables are highly correlated and may not be suitable for regression analysis.
+                """)
 
-            
+            # Train-test split
+            X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7, random_state=42)
 
-           # Train-test split
-        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7, random_state=42)
+            # XGBoost with GridSearchCV
+            param_grid = {
+                'n_estimators': [100, 300, 500, 1000],
+                'learning_rate': [0.01, 0.1, 0.3],
+                'max_depth': [3, 4, 5],
+                'alpha': [0, 0.1, 1],  # L1 regularization
+                'lambda': [1, 2, 5]    # L2 regularization
+            }
+            xgb_model = xgb.XGBClassifier(random_state=42)
+            grid_search = GridSearchCV(estimator=xgb_model, param_grid=param_grid, scoring='accuracy', cv=5, verbose=1, n_jobs=-1)
+            grid_search.fit(X_train, y_train)
 
-        # XGBoost with GridSearchCV
-        param_grid = {
-            'n_estimators': [100, 300, 500, 1000],
-            'learning_rate': [0.01, 0.1, 0.3],
-            'max_depth': [3, 4, 5],
-            'alpha': [0, 0.1, 1],  # L1 regularization
-            'lambda': [1, 2, 5]    # L2 regularization
-        }
-        xgb_model = xgb.XGBClassifier(random_state=42)
-        grid_search = GridSearchCV(estimator=xgb_model, param_grid=param_grid, scoring='accuracy', cv=5, verbose=1, n_jobs=-1)
-        grid_search.fit(X_train, y_train)
+            # Best parameters and score
+            best_params = grid_search.best_params_
+            best_score = grid_search.best_score_
+            st.write(f"Best Parameters: {best_params}")
+            st.write(f"Best Cross-Validation Score: {best_score}")
 
-        # Best parameters and score
-        best_params = grid_search.best_params_
-        best_score = grid_search.best_score_
-        st.write(f"Best Parameters: {best_params}")
-        st.write(f"Best Cross-Validation Score: {best_score}")
+            # Best model
+            best_model = grid_search.best_estimator_
 
-        # Best model
-        best_model = grid_search.best_estimator_
+            # Classification Report
+            y_train_pred = best_model.predict(X_train)
+            y_test_pred = best_model.predict(X_test)
 
-        # Classification Report
-        y_train_pred = best_model.predict(X_train)
-        y_test_pred = best_model.predict(X_test)
+            st.write("Classification Report - Train Data:")
+            st.text(classification_report(y_train, y_train_pred))
 
-        st.write("Classification Report - Train Data:")
-        st.text(classification_report(y_train, y_train_pred))
+            st.write("Classification Report - Test Data:")
+            st.text(classification_report(y_test, y_test_pred))
 
-        st.write("Classification Report - Test Data:")
-        st.text(classification_report(y_test, y_test_pred))
+            # Feature importance
+            importances = best_model.feature_importances_
+            feature_importance_df = pd.DataFrame({'Feature': independent_vars, 'Importance': importances})
+            feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
+            st.write("Feature Importance:")
+            st.write(feature_importance_df)
 
-        # Feature importance
-        importances = best_model.feature_importances_
-        feature_importance_df = pd.DataFrame({'Feature': ind_vars, 'Importance': importances})
-        feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
-        st.write("Feature Importance:")
-        st.write(feature_importance_df)
+            # Option to display tree
+            if st.checkbox("Display XGBoost Tree"):
+                tree_index = st.slider("Select Tree Index", 0, best_model.n_estimators - 1, 0)
+                tree = best_model.get_booster().get_dump()[tree_index]
+                st.graphviz_chart(graphviz.Source(tree))
 
-        # Option to display tree
-        if st.checkbox("Display XGBoost Tree"):
-            tree_index = st.slider("Select Tree Index", 0, best_model.n_estimators - 1, 0)
-            tree = best_model.get_booster().get_dump()[tree_index]
-            st.graphviz_chart(graphviz.Source(tree))
-
-           
 if __name__ == "__main__":
     main()
