@@ -170,10 +170,15 @@ def main():
             st.write(feature_importance_df)
 
             # Option to display tree
-            if st.checkbox("Display XGBoost Tree"):
-                tree_index = st.slider("Select Tree Index", 0, best_model.n_estimators - 1, 0)
-                tree = best_model.get_booster().get_dump()[tree_index]
-                st.graphviz_chart(graphviz.Source(tree))
+            if st.button("Display XGBoost Tree"):
+                booster = best_model.get_booster()
+
+                # Display the first tree (or any specific tree by changing num_trees parameter)
+                st.write("Displaying the first tree from the XGBoost ensemble:")
+                dot_data = xgb.to_graphviz(booster, num_trees=0)
+                
+                # Show the tree using graphviz in Streamlit
+                st.graphviz_chart(dot_data.source)
 
 if __name__ == "__main__":
     main()
